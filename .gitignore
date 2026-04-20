@@ -1,0 +1,9 @@
+*.mp4
+*.zip
+*.jpg
+*.jpeg
+*.docx
+*.txt
+*.py
+node_modules/
+.expo/
