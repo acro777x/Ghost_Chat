@@ -57,22 +57,20 @@ graph TD
 *   **Burn-On-View & Duress Wipes:** Features native "Bomb Images" that cryptographically disintegrate after being viewed. If compromised, typing the wipe command physically overwrites the ESP32's flash memory.
 *   **Android App Native Glassmorphism:** Features a premium, iOS-style frosted glass UI built in React Native, easily rivaling the design of Telegram and iMessage.
 
----
+## 🛠️ Tech Stack & Directory Structure
 
-## ⚙️ Hardware Installation & Connection Guide
+*   **/ghost_chat_esp_node:** The core C++ ESP32 firmware. Open and flash this using the Arduino IDE. Contains the async webserver and SPIFFS SD storage mechanisms.
+*   **/ghost_chat_app:** The React Native Mobile Application. Uses `expo-blur`, `@react-navigation/native-stack`, and custom base-64 cryptography.
 
-### What You Need:
-*   [Heltec WiFi LoRa 32 (V2)](https://heltec.org/)
-*   An Android Smartphone
+## ⚙️ How to Deploy
 
 ### 1. Flash the Node Core
-Open `/ghost_chat_v3_sx1276/ghost_chat_v3_sx1276.ino` in the standard **Arduino IDE**. You must install the `ESP32` board manager and the `LoRa` library. Flash the code to the board. 
+Open `/ghost_chat_esp_node/ghost_chat_esp_node.ino` in the standard **Arduino IDE**. You must install the `ESP32` board manager and the `LoRa` library. Flash the code to the board.
 
 ### 2. Connect Your Phone
 Once the Heltec board turns on, its OLED screen will light up.
 1. Open your Android Wi-Fi Settings.
 2. Connect to the network named `Ghost_Net` (Password: `ghost123`).
-3. Your phone is now actively bridged to the proprietary radio module. 
 
 ### 3. Start Ghost Chatting
 If you have compiled the `.apk` from the `/ghost_chat_app/` folder using Expo, simply open the Ghost Chat App on your phone. You will be greeted by the deep dark-web initialization terminal. Type in an Alias, set a localized room key, and establish the uplink.
