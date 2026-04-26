@@ -110,6 +110,14 @@ object GhostCrypto {
         return "%02d:%02d".format(c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE))
     }
 
+    /** Generate deterministic 8-char SHA-256 Hex Hash for distributed identification */
+    fun generateMessageId(sender: String, time: String, content: String): String {
+        val input = "$sender|$time|$content"
+        val md = java.security.MessageDigest.getInstance("SHA-256")
+        val hashBytes = md.digest(input.toByteArray(Charsets.UTF_8))
+        return hashBytes.joinToString("") { "%02x".format(it) }.take(8)
+    }
+
     /** Build a Ghost protocol message string */
     fun buildMsg(sender: String, content: String): String {
         return "$MSG_PREFIX|$sender|${timeNow()}|$content"

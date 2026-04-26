@@ -38,11 +38,11 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_main)
 
-        // Notch safety
+        // Notch and Keyboard (IME) safety
         val rootView = findViewById<android.view.View>(R.id.root_container)
         ViewCompat.setOnApplyWindowInsetsListener(rootView) { v, windowInsets ->
             val insets = windowInsets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime()
             )
             v.updatePadding(top = insets.top, bottom = insets.bottom)
             WindowInsetsCompat.CONSUMED

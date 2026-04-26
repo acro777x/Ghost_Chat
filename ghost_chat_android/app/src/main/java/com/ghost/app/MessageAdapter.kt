@@ -109,6 +109,10 @@ class MessageAdapter(
         private val tvText: TextView = v.findViewById(R.id.tv_msg_text)
         private val tvTime: TextView = v.findViewById(R.id.tv_msg_time)
         private val ivImage: ImageView = v.findViewById(R.id.iv_msg_image)
+        private val llReplyQuote: View? = v.findViewById(R.id.ll_reply_quote)
+        private val tvReplySender: TextView? = v.findViewById(R.id.tv_reply_sender)
+        private val tvReplyText: TextView? = v.findViewById(R.id.tv_reply_text)
+        private val tvReactionPill: TextView? = v.findViewById(R.id.tv_reaction_pill)
         private var burnRevealed = false
 
         fun bind(msg: ChatMessage) {
@@ -129,6 +133,23 @@ class MessageAdapter(
             itemView.setOnLongClickListener(onLongPress)
             tvText.setOnLongClickListener(onLongPress)
             ivImage.setOnLongClickListener(onLongPress)
+
+            // Reply UI
+            if (msg.replyToId.isNotEmpty() && llReplyQuote != null) {
+                llReplyQuote.visibility = View.VISIBLE
+                tvReplySender?.text = msg.replyToSender
+                tvReplyText?.text = msg.replyToPreview
+            } else {
+                llReplyQuote?.visibility = View.GONE
+            }
+
+            // Reactions UI
+            if (msg.reactions.isNotEmpty() && tvReactionPill != null) {
+                tvReactionPill.visibility = View.VISIBLE
+                tvReactionPill.text = msg.reactions.joinToString(" ")
+            } else {
+                tvReactionPill?.visibility = View.GONE
+            }
 
             if (msg.isBurn) {
                 tvText.visibility = View.VISIBLE
@@ -200,6 +221,10 @@ class MessageAdapter(
         private val tvName: TextView = v.findViewById(R.id.tv_sender_name)
         private val tvAvatar: TextView = v.findViewById(R.id.tv_avatar)
         private val ivImage: ImageView = v.findViewById(R.id.iv_msg_image)
+        private val llReplyQuote: View? = v.findViewById(R.id.ll_reply_quote)
+        private val tvReplySender: TextView? = v.findViewById(R.id.tv_reply_sender)
+        private val tvReplyText: TextView? = v.findViewById(R.id.tv_reply_text)
+        private val tvReactionPill: TextView? = v.findViewById(R.id.tv_reaction_pill)
 
         fun bind(msg: ChatMessage) {
             val color = GhostCrypto.avatarColor(msg.sender)
@@ -227,6 +252,23 @@ class MessageAdapter(
             itemView.setOnLongClickListener(onLongPress)
             tvText.setOnLongClickListener(onLongPress)
             ivImage.setOnLongClickListener(onLongPress)
+
+            // Reply UI
+            if (msg.replyToId.isNotEmpty() && llReplyQuote != null) {
+                llReplyQuote.visibility = View.VISIBLE
+                tvReplySender?.text = msg.replyToSender
+                tvReplyText?.text = msg.replyToPreview
+            } else {
+                llReplyQuote?.visibility = View.GONE
+            }
+
+            // Reactions UI
+            if (msg.reactions.isNotEmpty() && tvReactionPill != null) {
+                tvReactionPill.visibility = View.VISIBLE
+                tvReactionPill.text = msg.reactions.joinToString(" ")
+            } else {
+                tvReactionPill?.visibility = View.GONE
+            }
 
             if (msg.isBurn) {
                 tvText.visibility = View.VISIBLE

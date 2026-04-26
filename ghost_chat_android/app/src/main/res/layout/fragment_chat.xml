@@ -2,7 +2,7 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_dark">
+    android:background="@drawable/chat_wallpaper">
 
     <!-- Connection Status Banner -->
     <TextView
@@ -110,7 +110,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/header"
-        android:layout_above="@id/reply_bar">
+        android:layout_above="@id/input_bar_container">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_messages"
@@ -123,190 +123,199 @@
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-    <!-- Reply Preview Bar (hidden by default) -->
+    <!-- Bottom Input Container -->
     <LinearLayout
-        android:id="@+id/reply_bar"
+        android:id="@+id/input_bar_container"
         android:layout_width="match_parent"
-        android:layout_height="42dp"
-        android:layout_above="@id/input_bar"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="16dp"
-        android:paddingEnd="8dp"
-        android:background="@color/bg_elevated"
-        android:visibility="gone">
-
-        <View
-            android:layout_width="3dp"
-            android:layout_height="24dp"
-            android:background="@color/accent_blue"
-            android:layout_marginEnd="10dp" />
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/tv_reply_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Replying to..."
-                android:textColor="@color/accent_blue"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tv_reply_preview"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:maxLines="1"
-                android:ellipsize="end" />
-        </LinearLayout>
-
-        <ImageButton
-            android:id="@+id/btn_cancel_reply"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:src="@android:drawable/ic_menu_close_clear_cancel"
-            android:background="?selectableItemBackgroundBorderless"
-            android:tint="@color/white"
-            android:contentDescription="Cancel reply" />
-    </LinearLayout>
-
-    <!-- Typing Indicator -->
-    <TextView
-        android:id="@+id/tv_typing_indicator"
-        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_above="@id/input_bar"
-        android:layout_marginStart="16dp"
-        android:layout_marginBottom="4dp"
-        android:background="@drawable/bubble_recv"
+        android:layout_alignParentBottom="true"
+        android:orientation="vertical"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
-        android:paddingTop="6dp"
-        android:paddingBottom="6dp"
-        android:text="Typing..."
-        android:textColor="@color/text_secondary"
-        android:textSize="12sp"
-        android:textStyle="italic"
-        android:visibility="gone"
-        android:elevation="2dp" />
+        android:paddingBottom="8dp"
+        android:paddingTop="4dp">
 
-    <!-- Recording Indicator Bar -->
-    <LinearLayout
-        android:id="@+id/recording_bar"
-        android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_above="@id/input_bar"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:background="#CC1e293b"
-        android:visibility="gone"
-        android:elevation="4dp">
-
-        <View
-            android:id="@+id/v_recording_dot"
-            android:layout_width="10dp"
-            android:layout_height="10dp"
-            android:background="@drawable/circle_btn_bg"
-            android:backgroundTint="#ef4444" />
-
+        <!-- Typing Indicator -->
         <TextView
-            android:id="@+id/tv_recording_timer"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Recording 0:00"
-            android:textColor="#ef4444"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:layout_marginStart="10dp" />
-
-        <TextView
-            android:id="@+id/btn_cancel_recording"
+            android:id="@+id/tv_typing_indicator"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Cancel"
-            android:textColor="@color/text_secondary"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:background="?selectableItemBackground"
+            android:layout_marginStart="4dp"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/bubble_recv"
             android:paddingStart="12dp"
-            android:paddingEnd="12dp" />
-    </LinearLayout>
+            android:paddingEnd="12dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:text="Typing..."
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:textStyle="italic"
+            android:visibility="gone"
+            android:elevation="2dp" />
 
-    <!-- Frosted Glass Input Bar -->
-    <LinearLayout
-        android:id="@+id/input_bar"
-        android:layout_width="match_parent"
-        android:layout_height="58dp"
-        android:layout_alignParentBottom="true"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp"
-        android:background="@color/bg_card"
-        android:elevation="4dp">
-
-        <ImageButton
-            android:id="@+id/btn_attach"
-            android:layout_width="42dp"
+        <!-- Reply Preview Bar (hidden by default) -->
+        <LinearLayout
+            android:id="@+id/reply_bar"
+            android:layout_width="match_parent"
             android:layout_height="42dp"
-            android:src="@android:drawable/ic_input_add"
-            android:background="@drawable/circle_btn_bg"
-            android:contentDescription="Attach"
-            android:tint="@color/white"
-            android:scaleType="centerInside"
-            android:padding="10dp" />
-
-        <EditText
-            android:id="@+id/et_message"
-            android:layout_width="0dp"
-            android:layout_height="42dp"
-            android:layout_weight="1"
-            android:layout_marginStart="6dp"
-            android:layout_marginEnd="6dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="8dp"
+            android:layout_marginBottom="4dp"
             android:background="@drawable/chat_input_bg"
-            android:hint="Encrypted payload..."
-            android:textColorHint="@color/text_hint"
-            android:textColor="@color/text_primary"
-            android:textSize="14sp"
+            android:visibility="gone">
+
+            <View
+                android:layout_width="3dp"
+                android:layout_height="24dp"
+                android:background="@color/accent_blue"
+                android:layout_marginEnd="10dp" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_reply_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Replying to..."
+                    android:textColor="@color/accent_blue"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_reply_preview"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btn_cancel_reply"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:background="?selectableItemBackgroundBorderless"
+                android:tint="@color/text_secondary"
+                android:contentDescription="Cancel reply" />
+        </LinearLayout>
+
+        <!-- Recording Indicator Bar -->
+        <LinearLayout
+            android:id="@+id/recording_bar"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
-            android:maxLines="1"
-            android:imeOptions="actionSend"
-            android:inputType="text" />
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/chat_input_bg"
+            android:visibility="gone">
 
-        <ImageButton
-            android:id="@+id/btn_mic"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
-            android:layout_marginEnd="6dp"
-            android:src="@android:drawable/ic_btn_speak_now"
-            android:background="@drawable/circle_btn_bg"
-            android:contentDescription="Record Audio"
-            android:tint="@color/text_secondary"
-            android:scaleType="centerInside"
-            android:padding="8dp" />
+            <View
+                android:id="@+id/v_recording_dot"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:background="@drawable/circle_btn_bg"
+                android:backgroundTint="#ef4444" />
 
-        <ImageButton
-            android:id="@+id/btn_send"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
-            android:src="@android:drawable/ic_menu_send"
-            android:background="@drawable/send_btn_bg"
-            android:contentDescription="Send"
-            android:tint="@color/white"
-            android:scaleType="centerInside"
-            android:padding="10dp" />
+            <TextView
+                android:id="@+id/tv_recording_timer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Recording 0:00"
+                android:textColor="#ef4444"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:layout_marginStart="10dp" />
+
+            <TextView
+                android:id="@+id/btn_cancel_recording"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Cancel"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:background="?selectableItemBackground"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp" />
+        </LinearLayout>
+
+        <!-- Floating Glass Pill Input Bar -->
+        <LinearLayout
+            android:id="@+id/input_bar"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:background="@drawable/chat_input_bg"
+            android:elevation="4dp">
+
+            <ImageButton
+                android:id="@+id/btn_attach"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:src="@android:drawable/ic_input_add"
+                android:background="?selectableItemBackgroundBorderless"
+                android:contentDescription="Attach"
+                android:tint="@color/text_secondary"
+                android:scaleType="centerInside"
+                android:padding="10dp" />
+
+            <EditText
+                android:id="@+id/et_message"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="Encrypted payload..."
+                android:textColorHint="@color/text_hint"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:maxLines="4"
+                android:imeOptions="actionSend"
+                android:inputType="textMultiLine" />
+
+            <ImageButton
+                android:id="@+id/btn_mic"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:src="@android:drawable/ic_btn_speak_now"
+                android:background="?selectableItemBackgroundBorderless"
+                android:contentDescription="Record Audio"
+                android:tint="@color/text_secondary"
+                android:scaleType="centerInside"
+                android:padding="10dp" />
+
+            <ImageButton
+                android:id="@+id/btn_send"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@android:drawable/ic_menu_send"
+                android:background="@drawable/send_btn_bg"
+                android:contentDescription="Send"
+                android:tint="@color/white"
+                android:scaleType="centerInside"
+                android:padding="10dp"
+                android:layout_marginEnd="4dp" />
+        </LinearLayout>
+
     </LinearLayout>
 
 </RelativeLayout>

@@ -73,6 +73,9 @@ class GhostRepository {
                 var isImage = false
                 var isAudio = false
                 var isBurn = false
+                var replyToId = ""
+                var replyToSender = ""
+                var replyToPreview = ""
 
                 when {
                     rawContent.startsWith("SD:") -> {
@@ -108,22 +111,37 @@ class GhostRepository {
                         isAudio = true
                     }
                     rawContent.startsWith("REACT:") -> {
-                        // Format: REACT:<msgId>§<emoji>
-                        // The msgId contains ':' chars so we use § as delimiter
+                        // Format: REACT:<targetHash>§<emoji>
                         val payload = rawContent.removePrefix("REACT:")
                         val sepIdx = payload.lastIndexOf('§')
                         if (sepIdx >= 0) {
+                            val targetHash = payload.substring(0, sepIdx)
                             val emoji = payload.substring(sepIdx + 1)
-                            cleanContent = "reacted $emoji"
-                        } else {
-                            // Fallback: just show everything after last ':' as emoji
-                            val lastColon = payload.lastIndexOf(':')
-                            val emoji = if (lastColon >= 0) payload.substring(lastColon + 1) else payload
-                            cleanContent = "reacted $emoji"
+                            
+                            // Find the target message and attach the reaction INLINE
+                            val targetMsg = parsed.find { it.id == targetHash }
+                            if (targetMsg != null) {
+                                targetMsg.reactions.add(emoji)
+                            }
+                        }
+                        return@forEachIndexed // Do NOT create a standalone message bubble for reactions
+                    }
+                    rawContent.startsWith("REPLY:") -> {
+                        // Format: REPLY:<targetHash>|<sender>|<preview>§<content>
+                        val payload = rawContent.removePrefix("REPLY:")
+                        val sepIdx = payload.indexOf('§')
+                        if (sepIdx >= 0) {
+                            val meta = payload.substring(0, sepIdx).split("|", limit = 3)
+                            if (meta.size == 3) {
+                                replyToId = meta[0]
+                                replyToSender = meta[1]
+                                replyToPreview = meta[2]
+                                cleanContent = payload.substring(sepIdx + 1)
+                            }
                         }
                     }
                     rawContent.startsWith("EXP:") -> {
-                        // Format: EXP:<epoch>|<content> — disappearing message from this client
+                        // Format: EXP:<epoch>|<content>
                         val expParts = rawContent.split("|", limit = 2)
                         if (expParts.size == 2) {
                             expiresAt = expParts[0].removePrefix("EXP:").toLongOrNull() ?: 0L
@@ -132,8 +150,8 @@ class GhostRepository {
                     }
                 }
 
-                // Stable ID: hash of sender+time+content so it survives re-fetches
-                val stableId = "${sender}|${time}|${rawContent.hashCode()}"
+                // Deterministic SHA-256 ID: survives re-fetches and guarantees synchronization
+                val stableId = GhostCrypto.generateMessageId(sender, time, rawContent)
 
                 parsed.add(
                     ChatMessage(
@@ -148,6 +166,9 @@ class GhostRepository {
                         isViewOnce = isViewOnce,
                         isBurn = isBurn,
                         expiresAt = expiresAt,
+                        replyToId = replyToId,
+                        replyToSender = replyToSender,
+                        replyToPreview = replyToPreview,
                         receiptStatus = if (sender == myAlias) ReceiptStatus.DELIVERED else ReceiptStatus.NONE
                     )
                 )

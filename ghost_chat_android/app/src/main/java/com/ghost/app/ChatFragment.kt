@@ -141,10 +141,25 @@ class ChatFragment : Fragment() {
                     binding.btnSend.animate().scaleX(1f).scaleY(1f).setDuration(80).start()
                 }.start()
                 hapticPulse()
-                viewModel.sendMessage(text)
+                
+                // Build Payload
+                val payload = if (replyToPosition.isNotEmpty()) {
+                    val preview = binding.tvReplyPreview.text.toString()
+                    val sender = binding.tvReplyName.text.toString().removePrefix("↩ Replying to ")
+                    "REPLY:$replyToPosition|$sender|$preview§$text"
+                } else {
+                    text
+                }
+                
+                viewModel.sendMessage(payload)
                 binding.etMessage.setText("")
                 hideReplyBar()
             }
+        }
+
+        // Cancel Reply Button
+        binding.btnCancelReply?.setOnClickListener {
+            hideReplyBar()
         }
 
         // Enter sends
@@ -400,6 +415,13 @@ class ChatFragment : Fragment() {
         binding.tvReplyPreview.text = if (msg.isImage) "📷 Photo" else msg.content.take(60)
     }
 
+    private fun hideReplyBar() {
+        replyToPosition = ""
+        binding.replyBar.animate().translationY(60f).alpha(0f).setDuration(200).withEndAction {
+            binding.replyBar.visibility = View.GONE
+        }.start()
+    }
+
     private fun stopSearch() {
         isSearchMode = false
         adapter.searchQuery = ""
@@ -478,10 +500,7 @@ class ChatFragment : Fragment() {
         }
     }
 
-    private fun hideReplyBar() {
-        replyToPosition = ""
-        binding.replyBar.visibility = View.GONE
-    }
+    // Duplicate hideReplyBar removed
 
     private fun updateStatus(online: String, lora: String) {
         if (!isAdded) return

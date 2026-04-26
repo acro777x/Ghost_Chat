@@ -31,7 +31,10 @@ data class ChatMessage(
     // Phase 6: Reply reference
     val replyToId: String = "",
     val replyToSender: String = "",
-    val replyToPreview: String = ""
+    val replyToPreview: String = "",
+
+    // Phase 8: Reactions
+    val reactions: MutableList<String> = mutableListOf()
 ) {
     val avatarInitials: String get() = sender.take(2).uppercase()
 
