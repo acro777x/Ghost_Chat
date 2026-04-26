@@ -66,6 +66,44 @@
                 android:layout_width="wrap_content" android:layout_height="wrap_content" />
         </LinearLayout>
 
+        <!-- Custom Calculator PIN -->
+        <LinearLayout style="@style/SettingRow"
+            android:orientation="vertical"
+            android:gravity="start">
+
+            <TextView style="@style/SettingLabel" android:text="Calculator Unlock PIN" />
+            <TextView style="@style/SettingDesc" android:text="Set the secret number you type in the calculator + = to open Ghost Chat" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="6dp">
+
+                <EditText android:id="@+id/et_stealth_pin"
+                    android:layout_width="0dp" android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/input_neon_bg"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:paddingStart="12dp" android:paddingEnd="12dp"
+                    android:inputType="numberPassword"
+                    android:hint="1337"
+                    android:textColorHint="@color/text_hint" />
+
+                <TextView android:id="@+id/btn_save_pin"
+                    android:layout_width="wrap_content" android:layout_height="40dp"
+                    android:gravity="center"
+                    android:text="  Save  "
+                    android:textColor="@color/accent_blue"
+                    android:textStyle="bold"
+                    android:textSize="13sp"
+                    android:background="?selectableItemBackground"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
+        </LinearLayout>
+
         <TextView
             android:id="@+id/btn_qr_generate"
             android:layout_width="match_parent"

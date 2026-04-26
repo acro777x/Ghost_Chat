@@ -57,6 +57,20 @@ class SettingsFragment : Fragment() {
                 Toast.LENGTH_LONG).show()
         }
 
+        // ── Custom Calculator PIN ───────────────────────────────────
+        val etPin = view.findViewById<EditText>(R.id.et_stealth_pin)
+        etPin.setText(SecurePrefs.getStealthPin())
+        val btnSavePin = view.findViewById<TextView>(R.id.btn_save_pin)
+        btnSavePin.setOnClickListener {
+            val newPin = etPin.text.toString().trim()
+            if (newPin.length < 4) {
+                Toast.makeText(requireContext(), "⚠ PIN must be at least 4 digits", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            SecurePrefs.setStealthPin(newPin)
+            Toast.makeText(requireContext(), "🔐 Calculator PIN updated to $newPin", Toast.LENGTH_SHORT).show()
+        }
+
         val btnQrGenerate = view.findViewById<TextView>(R.id.btn_qr_generate)
         btnQrGenerate.setOnClickListener {
             val roomHash = SecurePrefs.getRoomHash()
