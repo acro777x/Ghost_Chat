@@ -112,26 +112,36 @@ class MessageAdapter(
         private var burnRevealed = false
 
         fun bind(msg: ChatMessage) {
-            // ALWAYS clear old listeners first to prevent stale state
-            tvText.setOnTouchListener(null)
+            // ALWAYS clear old listeners and state first
             tvText.setOnClickListener(null)
+            tvText.setOnLongClickListener(null)
+            tvText.isClickable = false
+            tvText.isLongClickable = false
+            
             ivImage.setOnClickListener(null)
             ivImage.setOnLongClickListener(null)
+            ivImage.isClickable = false
+            ivImage.isLongClickable = false
+
             burnRevealed = false
+
+            val onLongPress = View.OnLongClickListener { onLongClick(msg); true }
+            itemView.setOnLongClickListener(onLongPress)
+            tvText.setOnLongClickListener(onLongPress)
+            ivImage.setOnLongClickListener(onLongPress)
 
             if (msg.isBurn) {
                 tvText.visibility = View.VISIBLE
                 ivImage.visibility = View.GONE
                 tvText.text = "🔥 Tap to Reveal"
-                // Use CLICK instead of TOUCH to avoid eating long-press events
                 tvText.setOnClickListener {
                     if (!burnRevealed) {
                         burnRevealed = true
                         tvText.text = highlightText(msg.content)
-                        // Auto-destroy after 3 seconds
                         tvText.postDelayed({
                             tvText.text = "🔥 Destroyed"
                             tvText.setOnClickListener(null)
+                            tvText.isClickable = false
                             onBurnRevealed(msg.id)
                         }, 3000)
                     }
@@ -140,7 +150,6 @@ class MessageAdapter(
                 tvText.visibility = View.GONE
                 ivImage.visibility = View.VISIBLE
                 if (msg.isViewOnce) {
-                    // Bomb image — tap to reveal, then auto-destroy
                     ivImage.setImageResource(android.R.drawable.ic_dialog_alert)
                     ivImage.scaleType = android.widget.ImageView.ScaleType.CENTER
                     var bombRevealed = false
@@ -149,11 +158,11 @@ class MessageAdapter(
                             bombRevealed = true
                             ivImage.scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
                             ImageLoader.load(ivImage, GhostApi.downloadUrl(msg.content))
-                            // Auto-destroy after 5 seconds
                             ivImage.postDelayed({
                                 ivImage.setImageResource(android.R.drawable.ic_delete)
                                 ivImage.scaleType = android.widget.ImageView.ScaleType.CENTER
                                 ivImage.setOnClickListener(null)
+                                ivImage.isClickable = false
                                 onBurnRevealed(msg.id)
                             }, 5000)
                         }
@@ -176,15 +185,11 @@ class MessageAdapter(
             val star = if (msg.isStarred) " ⭐" else ""
             tvTime.text = "${msg.time}${receiptIcon(msg.receiptStatus)}${timerText(msg)}$star"
 
-            // Fade if near expiry
             if (msg.isEphemeral && msg.remainingSeconds < 10) {
                 itemView.alpha = 0.5f
             } else {
                 itemView.alpha = 1f
             }
-
-            // Long-press for context menu — ALWAYS set on itemView
-            itemView.setOnLongClickListener { onLongClick(msg); true }
         }
     }
 
@@ -207,11 +212,21 @@ class MessageAdapter(
             avatarBg.setColor(color)
             tvAvatar.background = avatarBg
 
-            // ALWAYS clear old listeners first
-            tvText.setOnTouchListener(null)
+            // ALWAYS clear old listeners and state first
             tvText.setOnClickListener(null)
+            tvText.setOnLongClickListener(null)
+            tvText.isClickable = false
+            tvText.isLongClickable = false
+
             ivImage.setOnClickListener(null)
             ivImage.setOnLongClickListener(null)
+            ivImage.isClickable = false
+            ivImage.isLongClickable = false
+
+            val onLongPress = View.OnLongClickListener { onLongClick(msg); true }
+            itemView.setOnLongClickListener(onLongPress)
+            tvText.setOnLongClickListener(onLongPress)
+            ivImage.setOnLongClickListener(onLongPress)
 
             if (msg.isBurn) {
                 tvText.visibility = View.VISIBLE
@@ -225,6 +240,7 @@ class MessageAdapter(
                         tvText.postDelayed({
                             tvText.text = "🔥 Destroyed"
                             tvText.setOnClickListener(null)
+                            tvText.isClickable = false
                             onBurnRevealed(msg.id)
                         }, 3000)
                     }
@@ -245,6 +261,7 @@ class MessageAdapter(
                                 ivImage.setImageResource(android.R.drawable.ic_delete)
                                 ivImage.scaleType = android.widget.ImageView.ScaleType.CENTER
                                 ivImage.setOnClickListener(null)
+                                ivImage.isClickable = false
                                 onBurnRevealed(msg.id)
                             }, 5000)
                         }
@@ -272,9 +289,6 @@ class MessageAdapter(
             } else {
                 itemView.alpha = 1f
             }
-
-            // Long-press for context menu — ALWAYS set on itemView
-            itemView.setOnLongClickListener { onLongClick(msg); true }
         }
     }
 
