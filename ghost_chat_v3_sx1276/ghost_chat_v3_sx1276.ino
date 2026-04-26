@@ -61,7 +61,7 @@ const char* NODE_ID     = "NODE-A";        // LoRa node identity
 #define MAX_IPS         16
 #define MAX_SESSIONS    8
 #define MAX_USERS       10
-#define MAX_ROOM_BYTES  20000     // 20KB per room max
+#define MAX_ROOM_BYTES  40000     // 40KB per room max (doubled for more messages)
 #define MIN_FREE_HEAP   28000
 #define LORA_FREQ       866E6     // 866 MHz
 #define LORA_BW         125E3
@@ -79,7 +79,7 @@ U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, OLED_SCL, OLED_SDA, U8X8_PIN_N
 // ============================================================
 // DYNAMIC ROOM STORAGE (LRU CACHE)
 // ============================================================
-#define MAX_ACTIVE_ROOMS 3
+#define MAX_ACTIVE_ROOMS 5
 
 struct ActiveRoom {
   String hash;
@@ -409,11 +409,16 @@ void setupRoutes() {
     server.send(200, "text/html", INDEX_HTML); 
   };
   server.on("/", serveMain);
-  server.on("/hotspot-detect.html", serveMain);
-  server.on("/library/test/success.html", serveMain);
-  server.on("/generate_204", serveMain);
-  server.on("/gen_204", serveMain);
+  
+  // Android / iOS Captive Portal Bypass (returns 204 or expected success instead of intercepting)
+  // This completely stops the "Sign in to network" popup.
+  auto serve204 = []() { server.send(204, "text/plain", ""); };
+  server.on("/generate_204", serve204);
+  server.on("/gen_204", serve204);
   server.on("/connecttest.txt", []() { server.send(200, "text/plain", "Microsoft Connect Test"); });
+  server.on("/hotspot-detect.html", []() { server.send(200, "text/html", "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>"); });
+  server.on("/library/test/success.html", []() { server.send(200, "text/html", "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>"); });
+  
   server.on("/favicon.ico", []() { server.send(204, "text/plain", ""); });
 
   server.on("/login", []() {
@@ -464,6 +469,11 @@ void setupRoutes() {
   });
 
   server.on("/read", []() {
+    // CRITICAL: Prevent browser/OkHttp caching so message updates display immediately
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    server.sendHeader("Pragma", "no-cache");
+    server.sendHeader("Expires", "0");
+
     uint32_t ip = (uint32_t)server.client().remoteIP();
     String tok = server.arg("tok");
     String rh = getSessionRoom(ip, tok);

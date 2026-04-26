@@ -286,8 +286,105 @@ const MG='GHO:';
 const gt=()=>{let d=new Date();return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')};
 function avc(n){let h=0;for(let i=0;i<n.length;i++)h=((h<<5)-h)+n.charCodeAt(i);let c=(h&0xFFFFFF).toString(16).padStart(6,'0');return '#'+c;}
 function ini(n){return(n||'??').substring(0,2).toUpperCase();}
-function enc(t,k){let r='';for(let i=0;i<t.length;i++)r+=String.fromCharCode(t.charCodeAt(i)^k.charCodeAt(i%k.length));return btoa(r);}
-function dec(e,k){try{let t=atob(e),r='';for(let i=0;i<t.length;i++)r+=String.fromCharCode(t.charCodeAt(i)^k.charCodeAt(i%k.length));return r;}catch{return'???';}}
+// ═══ AES-256-GCM CRYPTO ENGINE (Pure JS — matches Android GhostCrypto.kt) ═══
+const _SK=new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+function _rotr(x,n){return(x>>>n)|(x<<(32-n));}
+function sha256(msg){
+  const H=new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]);
+  const bl=msg.length,bits=bl*8,pl=((bl+8>>6)+1)<<6;
+  const p=new Uint8Array(pl);p.set(msg);p[bl]=0x80;
+  const dv=new DataView(p.buffer);dv.setUint32(pl-4,bits,false);
+  const W=new Uint32Array(64);
+  for(let o=0;o<pl;o+=64){
+    for(let i=0;i<16;i++)W[i]=dv.getUint32(o+i*4,false);
+    for(let i=16;i<64;i++){W[i]=(_rotr(W[i-2],17)^_rotr(W[i-2],19)^(W[i-2]>>>10))+W[i-7]+(_rotr(W[i-15],7)^_rotr(W[i-15],18)^(W[i-15]>>>3))+W[i-16]|0;}
+    let a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+    for(let i=0;i<64;i++){const t1=(h+(_rotr(e,6)^_rotr(e,11)^_rotr(e,25))+((e&f)^(~e&g))+_SK[i]+W[i])|0;const t2=((_rotr(a,2)^_rotr(a,13)^_rotr(a,22))+((a&b)^(a&c)^(b&c)))|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;}
+    H[0]=(H[0]+a)|0;H[1]=(H[1]+b)|0;H[2]=(H[2]+c)|0;H[3]=(H[3]+d)|0;H[4]=(H[4]+e)|0;H[5]=(H[5]+f)|0;H[6]=(H[6]+g)|0;H[7]=(H[7]+h)|0;
+  }
+  const r=new Uint8Array(32),rv=new DataView(r.buffer);
+  for(let i=0;i<8;i++)rv.setUint32(i*4,H[i],false);return r;
+}
+function hmacSha256(key,msg){
+  let k=key.length>64?sha256(key):key;const kp=new Uint8Array(64);kp.set(k);
+  const ip=new Uint8Array(64),op=new Uint8Array(64);
+  for(let i=0;i<64;i++){ip[i]=kp[i]^0x36;op[i]=kp[i]^0x5c;}
+  const im=new Uint8Array(64+msg.length);im.set(ip);im.set(msg,64);
+  const om=new Uint8Array(96);om.set(op);om.set(sha256(im),64);return sha256(om);
+}
+function _pbkdf2(pwd,salt,iter,dkLen){
+  const dk=new Uint8Array(dkLen);let pos=0;
+  for(let blk=1;pos<dkLen;blk++){
+    const sb=new Uint8Array(salt.length+4);sb.set(salt);sb[salt.length]=(blk>>24)&0xff;sb[salt.length+1]=(blk>>16)&0xff;sb[salt.length+2]=(blk>>8)&0xff;sb[salt.length+3]=blk&0xff;
+    let u=hmacSha256(pwd,sb),t=new Uint8Array(u);
+    for(let i=1;i<iter;i++){u=hmacSha256(pwd,u);for(let j=0;j<32;j++)t[j]^=u[j];}
+    dk.set(t.subarray(0,Math.min(32,dkLen-pos)),pos);pos+=32;
+  }return dk;
+}
+const _SB=new Uint8Array([99,124,119,123,242,107,111,197,48,1,103,43,254,215,171,118,202,130,201,125,250,89,71,240,173,212,162,175,156,164,114,192,183,253,147,38,54,63,247,204,52,165,229,241,113,216,49,21,4,199,35,195,24,150,5,154,7,18,128,226,235,39,178,117,9,131,44,26,27,110,90,160,82,59,214,179,41,227,47,132,83,209,0,237,32,252,177,91,106,203,190,57,74,76,88,207,208,239,170,251,67,77,51,133,69,249,2,127,80,60,159,168,81,163,64,143,146,157,56,245,188,182,218,33,16,255,243,210,205,12,19,236,95,151,68,23,196,167,126,61,100,93,25,115,96,129,79,220,34,42,144,136,70,238,184,20,222,94,11,219,224,50,58,10,73,6,36,92,194,211,172,98,145,149,228,121,231,200,55,109,141,213,78,169,108,86,244,234,101,122,174,8,186,120,37,46,28,166,180,198,232,221,116,31,75,189,139,138,112,62,181,102,72,3,246,14,97,53,87,185,134,193,29,158,225,248,152,17,105,217,142,148,155,30,135,233,206,85,40,223,140,161,137,13,191,230,66,104,65,153,45,15,176,84,187,22]);
+const _RC=[1,2,4,8,16,32,64,128,27,54];
+function _xtime(a){return((a<<1)^(a&0x80?0x1b:0))&0xff;}
+function _aesExpand(key){
+  const w=new Uint32Array(60);
+  for(let i=0;i<8;i++)w[i]=(key[4*i]<<24)|(key[4*i+1]<<16)|(key[4*i+2]<<8)|key[4*i+3];
+  for(let i=8;i<60;i++){let t=w[i-1];if(i%8===0){t=((_SB[(t>>16)&0xff]<<24)|(_SB[(t>>8)&0xff]<<16)|(_SB[t&0xff]<<8)|_SB[t>>>24])^(_RC[i/8-1]<<24);}else if(i%8===4){t=(_SB[t>>>24]<<24)|(_SB[(t>>16)&0xff]<<16)|(_SB[(t>>8)&0xff]<<8)|_SB[t&0xff];}w[i]=w[i-8]^t;}
+  return w;
+}
+function _aesCipher(inp,rk){
+  const s=new Uint8Array(inp);let t;
+  for(let c=0;c<4;c++){const k=rk[c];s[4*c]^=(k>>>24);s[4*c+1]^=(k>>16)&0xff;s[4*c+2]^=(k>>8)&0xff;s[4*c+3]^=k&0xff;}
+  for(let r=1;r<14;r++){
+    for(let i=0;i<16;i++)s[i]=_SB[s[i]];
+    t=s[1];s[1]=s[5];s[5]=s[9];s[9]=s[13];s[13]=t;t=s[2];s[2]=s[10];s[10]=t;t=s[6];s[6]=s[14];s[14]=t;t=s[15];s[15]=s[11];s[11]=s[7];s[7]=s[3];s[3]=t;
+    for(let c=0;c<4;c++){const i=4*c,a=s[i],b=s[i+1],cc=s[i+2],d=s[i+3],e=a^b^cc^d;s[i]^=e^_xtime(a^b);s[i+1]^=e^_xtime(b^cc);s[i+2]^=e^_xtime(cc^d);s[i+3]^=e^_xtime(d^a);}
+    for(let c=0;c<4;c++){const k=rk[r*4+c];s[4*c]^=(k>>>24);s[4*c+1]^=(k>>16)&0xff;s[4*c+2]^=(k>>8)&0xff;s[4*c+3]^=k&0xff;}
+  }
+  for(let i=0;i<16;i++)s[i]=_SB[s[i]];
+  t=s[1];s[1]=s[5];s[5]=s[9];s[9]=s[13];s[13]=t;t=s[2];s[2]=s[10];s[10]=t;t=s[6];s[6]=s[14];s[14]=t;t=s[15];s[15]=s[11];s[11]=s[7];s[7]=s[3];s[3]=t;
+  for(let c=0;c<4;c++){const k=rk[56+c];s[4*c]^=(k>>>24);s[4*c+1]^=(k>>16)&0xff;s[4*c+2]^=(k>>8)&0xff;s[4*c+3]^=k&0xff;}
+  return s;
+}
+function _incCtr(c){for(let i=15;i>=12;i--)if(++c[i])break;}
+function _gctr(rk,icb,data){
+  const out=new Uint8Array(data.length),ctr=new Uint8Array(icb);
+  for(let i=0;i<data.length;i+=16){const ks=_aesCipher(ctr,rk);const end=Math.min(16,data.length-i);for(let j=0;j<end;j++)out[i+j]=data[i+j]^ks[j];_incCtr(ctr);}return out;
+}
+function _gfMul(x,h){
+  const z=new Uint8Array(16),v=new Uint8Array(h);
+  for(let i=0;i<128;i++){if(x[i>>3]&(0x80>>(i&7)))for(let j=0;j<16;j++)z[j]^=v[j];const lb=v[15]&1;for(let j=15;j>0;j--)v[j]=(v[j]>>1)|((v[j-1]&1)<<7);v[0]>>=1;if(lb)v[0]^=0xe1;}return z;
+}
+function _ghash(h,ct){
+  const y=new Uint8Array(16),cpl=Math.ceil(ct.length/16)*16,cp=new Uint8Array(cpl);cp.set(ct);
+  for(let i=0;i<cpl;i+=16){for(let j=0;j<16;j++)y[j]^=cp[i+j];y.set(_gfMul(y,h));}
+  const lb=new Uint8Array(16),bits=ct.length*8;lb[12]=(bits>>>24)&0xff;lb[13]=(bits>>16)&0xff;lb[14]=(bits>>8)&0xff;lb[15]=bits&0xff;
+  for(let j=0;j<16;j++)y[j]^=lb[j];y.set(_gfMul(y,h));return y;
+}
+let _aesKey=null;
+function initCrypto(password){
+  const te=new TextEncoder(),salt=te.encode(password+'ghost_salt_v5'),pwd=te.encode(password);
+  _aesKey=_pbkdf2(pwd,salt,100000,32);
+}
+function enc(text){
+  const rk=_aesExpand(_aesKey),iv=new Uint8Array(12);crypto.getRandomValues(iv);
+  const h=_aesCipher(new Uint8Array(16),rk),j0=new Uint8Array(16);j0.set(iv);j0[15]=1;
+  const icb=new Uint8Array(j0);_incCtr(icb);
+  const pt=new TextEncoder().encode(text),ct=_gctr(rk,icb,pt);
+  const s=_ghash(h,ct),tag=_gctr(rk,j0,s);
+  const out=new Uint8Array(12+ct.length+16);out.set(iv);out.set(ct,12);out.set(tag,12+ct.length);
+  let b='';for(let i=0;i<out.length;i++)b+=String.fromCharCode(out[i]);return btoa(b);
+}
+function dec(b64){
+  try{
+    const raw=atob(b64),combined=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)combined[i]=raw.charCodeAt(i);
+    if(combined.length<28)return'???';
+    const rk=_aesExpand(_aesKey),iv=combined.slice(0,12),ct=combined.slice(12,combined.length-16),tag=combined.slice(combined.length-16);
+    const h=_aesCipher(new Uint8Array(16),rk),j0=new Uint8Array(16);j0.set(iv);j0[15]=1;
+    const s=_ghash(h,ct),exTag=_gctr(rk,j0,s);
+    for(let i=0;i<16;i++)if(exTag[i]!==tag[i])return'???';
+    const icb=new Uint8Array(j0);_incCtr(icb);
+    return new TextDecoder().decode(_gctr(rk,icb,ct));
+  }catch(e){return'???';}
+}
 function hsh(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h)+s.charCodeAt(i);return Math.abs(h).toString(16).substring(0,6);}
 function fastHash(s){let h=0;for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return h;}
 function fmtSD(s){if(s<60)return s+'s';return(s/60)+'m';}
@@ -321,7 +418,8 @@ function doLogin(){
   if(!myName||!myKey){toast('Enter Alias and Password','err');return;}
   
   roomHash=genHash(myKey);
-  toast('Verifying keys...', 'ok');
+  toast('Deriving AES-256 key...','ok');
+  initCrypto(myKey);
   
   fetch('/login?room='+roomHash+'&pass='+encodeURIComponent(myKey)+'&name='+encodeURIComponent(myName))
     .then(r=>r.text()).then(resp=>{
@@ -333,7 +431,7 @@ function doLogin(){
         document.getElementById('ra').innerText = myName.substring(0,1).toUpperCase();
         
         let jm=MG+'|SYS|'+gt()+'|👤 '+myName+' securely joined';
-        fetch('/send?tok='+myTok+'&msg='+encodeURIComponent(enc(jm,myKey)));
+        fetch('/send?tok='+myTok+'&msg='+encodeURIComponent(enc(jm)));
         startPoll();setInterval(chkPin,4000);setInterval(chkLora,5000);
       }
       else{toast('Login Failed','err');}
@@ -341,7 +439,7 @@ function doLogin(){
 }
 function doLogout(){
   try {
-    fetch('/send?tok='+myTok+'&msg='+encodeURIComponent(enc(MG+'|SYS|'+gt()+'|👤 '+myName+' left',myKey)))
+    fetch('/send?tok='+myTok+'&msg='+encodeURIComponent(enc(MG+'|SYS|'+gt()+'|👤 '+myName+' left')))
       .catch(()=>{})
       .finally(()=>{ window.location.href = "/"; });
   } catch(e) {
@@ -414,7 +512,7 @@ function handleUpload(isVO){
            if(r.ok){
              let px = isVO?'VO:':'IMG:';
              let raw = MG+'|'+myName+'|'+gt()+'|'+px+fn;
-             fetch('/send?tok='+myTok+'&msg='+encodeURIComponent(enc(raw,myKey))).then(()=>poll());
+             fetch('/send?tok='+myTok+'&msg='+encodeURIComponent(enc(raw))).then(()=>poll());
              toast('Delivered securely', 'ok');
            }else{toast('Server rejected file','err');}
            uploadEnd(iid,mi);
@@ -435,7 +533,7 @@ function uploadEnd(iid,mi){
 function delImg(fn){
   if(!confirm('Delete globally?'))return;
   fetch('/delete_file?name='+fn+'&tok='+myTok);
-  fetch('/send?tok='+myTok+'&msg='+encodeURIComponent(enc(MG+'|SYS|00:00|CMD:DEL:'+fn,myKey))).then(()=>poll());
+  fetch('/send?tok='+myTok+'&msg='+encodeURIComponent(enc(MG+'|SYS|00:00|CMD:DEL:'+fn))).then(()=>poll());
 }
 
 // ─── BOMB VIEWING ────────────────────────────────────────────
@@ -455,7 +553,7 @@ function burnBomb(){
   
   if(svFile){
     fetch('/delete_file?name='+svFile+'&tok='+myTok);
-    fetch('/send?tok='+myTok+'&msg='+encodeURIComponent(enc(MG+'|SYS|00:00|CMD:DEL:'+svFile,myKey)));
+    fetch('/send?tok='+myTok+'&msg='+encodeURIComponent(enc(MG+'|SYS|00:00|CMD:DEL:'+svFile)));
     svFile='';
     toast('Image burned globally', 'ok');
   }
@@ -469,7 +567,7 @@ function sendMsg(){
   let epoch=sdTimer>0?Date.now():0;
   let content=sdTimer>0?'SD:'+sdTimer+':'+epoch+':'+m:m;
   let raw=MG+'|'+myName+'|'+gt()+'|'+content;
-  fetch('/send?tok='+myTok+'&msg='+encodeURIComponent(enc(raw,myKey)))
+  fetch('/send?tok='+myTok+'&msg='+encodeURIComponent(enc(raw)))
     .then(()=>{document.getElementById('mi').value='';setSdTimer(0);poll();});
 }
 function onType(){if(Date.now()-lastType>2000){lastType=Date.now();fetch('/typing?name='+encodeURIComponent(myName)+'&tok='+myTok);}}
@@ -486,7 +584,7 @@ function showCtx(txt,e){
 document.addEventListener('click',e=>{
   if(!e.target.closest('#ctxMenu')) document.getElementById('ctxMenu').style.display='none';
 });
-function pinMsg(){fetch('/pin?tok='+myTok+'&msg='+encodeURIComponent(enc(selTxt,myKey)));}
+function pinMsg(){fetch('/pin?tok='+myTok+'&msg='+encodeURIComponent(enc(selTxt)));}
 function copyMsg(){navigator.clipboard?.writeText(selTxt).then(()=>toast('Copied','ok'));}
 function sdReply(){setSdTimer(60);let i=document.getElementById('mi');i.value='re: '+selTxt.substring(0,25)+'... ';i.focus();}
 
@@ -498,7 +596,7 @@ function chkPin(){
   fetch('/getpin?tok='+myTok).then(r=>r.text()).then(ep=>{
     let bar=document.getElementById('pinBar');
     if(ep==='NONE'||!ep)bar.style.display='none';
-    else{let t=dec(ep,myKey);if(t&&t!=='???'){bar.style.display='flex';document.getElementById('pc').innerText=t;}}
+    else{let t=dec(ep);if(t&&t!=='???'){bar.style.display='flex';document.getElementById('pc').innerText=t;}}
   });
 }
 function unpin(){fetch('/pin?tok='+myTok+'&msg=CLEAR');document.getElementById('pinBar').style.display='none';}
@@ -512,7 +610,7 @@ function chkLora(){
 
 function poll(){
   if(uploading)return;
-  fetch('/read?tok='+myTok).then(r=>r.text()).then(raw=>{
+  fetch('/read?tok='+myTok+'&_='+Date.now()).then(r=>r.text()).then(raw=>{
     errs=0;document.getElementById('cdot').style.background='var(--success)';
     document.getElementById('cdot').style.boxShadow='0 0 8px var(--success)';
 
@@ -525,7 +623,7 @@ function poll(){
 
     let msgs=md.split('|||').filter(m=>m.length>0);
     msgs.forEach(m=>{
-      let c=dec(m,myKey); if(!c.startsWith(MG))return;
+      let c=dec(m); if(!c.startsWith(MG))return;
       let p=c.split('|'); if(p.length<4)return;
       let cnt=p.slice(3).join('|');
       if(cnt.startsWith('CMD:DEL:')){let f=cnt.substring(8);if(!delFiles.includes(f))delFiles.push(f);}
@@ -534,7 +632,7 @@ function poll(){
     let html='';
     let rc=0;
     msgs.forEach(m=>{
-      let c=m.startsWith('GHO:|LORA')?m:dec(m,myKey);
+      let c=m.startsWith('GHO:|LORA')?m:dec(m);
       if(!c.startsWith(MG))return;
       let p=c.split('|');if(p.length<4)return;
       let snd=p[1],tim=p[2],cnt=p.slice(3).join('|');
