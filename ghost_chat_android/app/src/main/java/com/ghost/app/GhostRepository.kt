@@ -1,0 +1,201 @@
+package com.ghost.app
+
+import javax.crypto.spec.SecretKeySpec
+
+/**
+ * GhostRepository — Single Source of Truth (MVVM Data Layer)
+ *
+ * Merges live ESP32 data with local state.
+ * Called ONLY by ViewModels — never by Fragments/Activities.
+ * All network calls happen here via GhostApi.
+ */
+class GhostRepository {
+
+    /** Login to ESP32 and return auth token */
+    suspend fun login(alias: String, key: String): Result<LoginResult> {
+        val roomHash = GhostCrypto.genHash(key)
+        val aesKey = GhostCrypto.deriveKey(key)
+
+        val loginResult = GhostApi.login(roomHash, key, alias)
+
+        return loginResult.map { tok ->
+            // Send join notification (AES encrypted)
+            val joinMsg = GhostCrypto.buildSysMsg("👤 $alias securely joined via Android")
+            val encrypted = GhostCrypto.encryptAES(joinMsg, aesKey)
+            GhostApi.sendMessage(tok, encrypted)
+
+            LoginResult(
+                token = tok,
+                alias = alias,
+                key = key,
+                roomHash = roomHash,
+                aesKey = aesKey
+            )
+        }
+    }
+
+    /** Fetch and decrypt messages from ESP32 */
+    suspend fun readMessages(tok: String, aesKey: SecretKeySpec, myAlias: String): Result<MessageResult> {
+        val result = GhostApi.readMessages(tok)
+        return result.map { (messageData, onlineCount, typingUser) ->
+            val rawMsgs = messageData.split("|||").filter { it.isNotEmpty() }
+            val parsed = mutableListOf<ChatMessage>()
+            val deletedIds = mutableSetOf<String>()
+
+            rawMsgs.forEachIndexed { idx, m ->
+                val decrypted = try {
+                    GhostCrypto.decryptAES(m, aesKey)
+                } catch (e: Exception) {
+                    return@forEachIndexed // Skip unreadable messages
+                }
+
+                if (!decrypted.startsWith(GhostCrypto.MSG_PREFIX)) return@forEachIndexed
+
+                val parts = decrypted.split("|")
+                if (parts.size < 4) return@forEachIndexed
+
+                val sender = parts[1]
+                val time = parts[2]
+                val rawContent = parts.drop(3).joinToString("|")
+                
+                if (rawContent.startsWith("CMD:")) {
+                    if (rawContent.startsWith("CMD:DEL:")) {
+                        val delId = rawContent.removePrefix("CMD:DEL:")
+                        if (delId.isNotEmpty()) deletedIds.add(delId)
+                    }
+                    return@forEachIndexed
+                }
+
+                // ── Shield Wall: Parse wire protocol into clean state ──
+                var cleanContent = rawContent
+                var expiresAt = 0L
+                var isViewOnce = false
+                var isImage = false
+                var isAudio = false
+                var isBurn = false
+
+                when {
+                    rawContent.startsWith("SD:") -> {
+                        // Format: SD:duration:epoch:Actual Message Text (may contain colons)
+                        val sdParts = rawContent.split(":", limit = 4)
+                        if (sdParts.size == 4) {
+                            val duration = sdParts[1].toLongOrNull() ?: 0L
+                            val epoch = sdParts[2].toLongOrNull() ?: 0L
+                            cleanContent = sdParts[3]
+                            expiresAt = epoch + (duration * 1000)
+                        } else {
+                            cleanContent = rawContent // Fallback if corrupted
+                        }
+                    }
+                    rawContent.startsWith("VO:") -> {
+                        // Format: VO:filename.jpg — View-Once bomb image
+                        cleanContent = rawContent.removePrefix("VO:")
+                        isImage = true
+                        isViewOnce = true
+                    }
+                    rawContent.startsWith("IMG:") -> {
+                        // Format: IMG:filename.jpg — Normal image
+                        cleanContent = rawContent.removePrefix("IMG:")
+                        isImage = true
+                    }
+                    rawContent.startsWith("BURN:") -> {
+                        // Format: BURN:text — Burn on Read message
+                        cleanContent = rawContent.removePrefix("BURN:")
+                        isBurn = true
+                    }
+                    rawContent.startsWith("VOX:") -> {
+                        cleanContent = rawContent.removePrefix("VOX:")
+                        isAudio = true
+                    }
+                    rawContent.startsWith("REACT:") -> {
+                        // Format: REACT:<msgId>§<emoji>
+                        // The msgId contains ':' chars so we use § as delimiter
+                        val payload = rawContent.removePrefix("REACT:")
+                        val sepIdx = payload.lastIndexOf('§')
+                        if (sepIdx >= 0) {
+                            val emoji = payload.substring(sepIdx + 1)
+                            cleanContent = "reacted $emoji"
+                        } else {
+                            // Fallback: just show everything after last ':' as emoji
+                            val lastColon = payload.lastIndexOf(':')
+                            val emoji = if (lastColon >= 0) payload.substring(lastColon + 1) else payload
+                            cleanContent = "reacted $emoji"
+                        }
+                    }
+                    rawContent.startsWith("EXP:") -> {
+                        // Format: EXP:<epoch>|<content> — disappearing message from this client
+                        val expParts = rawContent.split("|", limit = 2)
+                        if (expParts.size == 2) {
+                            expiresAt = expParts[0].removePrefix("EXP:").toLongOrNull() ?: 0L
+                            cleanContent = expParts[1]
+                        }
+                    }
+                }
+
+                // Stable ID: hash of sender+time+content so it survives re-fetches
+                val stableId = "${sender}|${time}|${rawContent.hashCode()}"
+
+                parsed.add(
+                    ChatMessage(
+                        id = stableId,
+                        sender = sender,
+                        time = time,
+                        content = cleanContent,
+                        isSent = sender == myAlias,
+                        isSys = sender == "SYS",
+                        isImage = isImage,
+                        isAudio = isAudio,
+                        isViewOnce = isViewOnce,
+                        isBurn = isBurn,
+                        expiresAt = expiresAt,
+                        receiptStatus = if (sender == myAlias) ReceiptStatus.DELIVERED else ReceiptStatus.NONE
+                    )
+                )
+            }
+
+            MessageResult(messages = parsed.filter { it.id !in deletedIds }, onlineCount = onlineCount, typingUser = typingUser)
+        }
+    }
+
+    /** Encrypt and send a text message */
+    suspend fun sendMessage(tok: String, aesKey: SecretKeySpec, alias: String, text: String): Result<Boolean> {
+        val raw = GhostCrypto.buildMsg(alias, text)
+        val encrypted = GhostCrypto.encryptAES(raw, aesKey)
+        return GhostApi.sendMessage(tok, encrypted)
+    }
+
+    /** Send a system notification message */
+    suspend fun sendSystemMessage(tok: String, aesKey: SecretKeySpec, text: String): Result<Boolean> {
+        val raw = GhostCrypto.buildSysMsg(text)
+        val encrypted = GhostCrypto.encryptAES(raw, aesKey)
+        return GhostApi.sendMessage(tok, encrypted)
+    }
+
+    /** Upload image file to ESP32 */
+    suspend fun uploadImage(tok: String, file: java.io.File): Result<Boolean> {
+        return GhostApi.uploadFile(tok, file)
+    }
+
+    /** Check LoRa radio status */
+    suspend fun checkLoraStatus(): String {
+        return GhostApi.loraStatus().getOrDefault("Offline")
+    }
+}
+
+/** Login result container */
+data class LoginResult(
+    val token: String,
+    val alias: String,
+    val key: String,
+    val roomHash: String,
+    val aesKey: SecretKeySpec
+)
+
+/** Message fetch result container */
+data class MessageResult(
+    val messages: List<ChatMessage>,
+    val onlineCount: String,
+    val typingUser: String = "",
+    val loraStatus: String = "Offline"
+)
+
